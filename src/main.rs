@@ -1,9 +1,9 @@
-mod bluetooth;
-mod daemon;
+pub mod dbus;
 
 fn main() {
-    match daemon::birth::run() {
-        Ok(_) => println!("nice "),
-        Err(e) => println!("ceruleus: Error -> {}", e),
-    }
+
+
+    dbus::core
+
+
 }

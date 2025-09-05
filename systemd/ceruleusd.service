@@ -1,0 +1,11 @@
+[Unit]
+Description=ceruleus daemon for system locking
+After=multi-user.target
+Requires=bluetooth.service
+
+[Service]
+Type=forking
+Restart=always
+User=root
+ExecStart=/home/laurenz/projects/ceruleus/target/debug/ceruleus
+

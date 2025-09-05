@@ -1,10 +1,9 @@
-
-use std::fs::File;
-
 use daemonize::Daemonize;
 
 pub fn run() -> Result<(), String> {
     //journalctl by systemd?
+    // let stdout = File::create("/tmp/daemon.out").unwrap();
+    // let stderr = File::create("/tmp/daemon.err").unwrap();
 
     let daemonize = Daemonize::new()
         .pid_file("/tmp/ceruleus.pid") // Every method except `new` and `start`
@@ -15,8 +14,8 @@ pub fn run() -> Result<(), String> {
         .group("daemon") // Group name
         .group(2) // or group id.
         .umask(0o777) // Set umask, `0o027` by default.
-        .stdout(stdout)  // Redirect stdout to `/tmp/daemon.out`.
-        .stderr(stderr)  // Redirect stderr to `/tmp/daemon.err`.
+        // .stdout(stdout)  // Redirect stdout to `/tmp/daemon.out`.
+        // .stderr(stderr)  // Redirect stderr to `/tmp/daemon.err`.
         .privileged_action(|| "Executed before drop privileges");
 
 
