@@ -1,9 +1,13 @@
-pub mod dbus;
+pub mod dbus_bluetoothd;
+use tokio::main;
 
-fn main() {
+#[tokio::main]
+async fn main() {
 
 
-    dbus::core
+    if let Err(e ) = dbus_bluetoothd::core::connect_bluetooth_dbus().await{
+        eprintln!("ceruleus: Error -> {}", e);
+    }
 
 
 }
