@@ -1,70 +1,60 @@
+
+use bluez_async::{BluetoothError, BluetoothSession};
 use std::time::Duration;
-use dbus::blocking::Connection;
-use dbus::arg;
-use std::collections::HashMap;
-use dbus::blocking::stdintf::org_freedesktop_dbus::Properties;
 use log::info;
-
-// TODO: read from etc file later on
-struct Bluetoothd {
-        iphone_bluetooth_mac: String,
-        bluetooth_dbus_interface: String,
-        proxy_dest: String,
-        proxy_path: String,
-}
+use tokio::time;
+const SCAN_DURATION: Duration = Duration::from_secs(20);
 
 
+/// Start Bluetooth discovery and pair with the specified device
+/// IMPORTANT: Device needs to be paired first
+pub async fn start() -> Result<(), BluetoothError>{
+        // pretty_env_logger::init();
+    // Configure env_logger programmatically
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Info) // Set default level
+        .parse_default_env() // Still allow RUST_LOG to override this
+        .init();
 
+        // Create a new session. This establishes the D-Bus connection to talk to BlueZ. In this case we
+        // ignore the join handle, as we don't intend to run indefinitely.
+        let (_, session) = BluetoothSession::new().await?;
 
-/// Get MAC of trusted device e.g. the iphone and try to connect to it
-pub fn start() -> Result<(), String> {
+        // Start scanning for Bluetooth devices, and wait a few seconds for some to be discovered.
+        session.start_discovery().await?;
+        time::sleep(Duration::from_secs(5)).await;
+        session.stop_discovery().await?;
 
-
-        let mut connection_parameters: Bluetoothd = Bluetoothd {
-                iphone_bluetooth_mac: "A0:78:2D:E9:CB:AC".to_string(),
-                bluetooth_dbus_interface : "org.bluez.Adapter1".to_string(),
-                proxy_dest: "org.bluez".to_string(),
-                proxy_path: "/org/bluez/hci0".to_string(),
+        // Get a list of devices which are currently known.
+        let devices = session.get_devices().await?;
+        // let device_mac = get_mac();
+            info!("Devices:P{}", get_mac());
+              // Find the device we care about.
+        let device = match devices
+            .into_iter()
+            .find(|device| device.mac_address.to_string().ends_with("E9:CB:AC"))
+            // .find(|device| device.mac_address.to_string().ends_with("06:9A:F5"))
+        {
+                Some(device) => device,
+                None => return Err(BluetoothError::AddressTypeParseError("mac not found".to_string())),
         };
 
-        // Connect to the system bus
-        let connection = Connection::new_system().map_err(|err| err.to_string())?;
 
-        // Create a proxy to the BlueZ adapter (typically hci0)
-        let proxy = connection.with_proxy(
-                connection_parameters.proxy_dest.clone(),
-                connection_parameters.proxy_path.clone(),
-                Duration::from_millis(5000)
-        );
-
-        // Method 1: Get a specific property from the adapter
-        info!("Getting BlueZ adapter Bluetooth Device Properties");
-
-        let powered: bool = proxy.get("org.bluez.Adapter1", "Powered")
-            .map_err(|err| format!("Failed to get Powered property: {}", err))?;
-        println!("Adapter powered: {}", powered);
-
-        let discoverable: bool = proxy.get("org.bluez.Adapter1", "Discoverable")
-            .map_err(|err| format!("Failed to get Discoverable property: {}", err))?;
-        println!("Adapter discoverable: {}", discoverable);
-
-        // Method 2: Get all properties from the adapter
-        // println!("\n=== All Adapter Properties ===");
-        // let props: HashMap<String, arg::Variant<Box<dyn arg::RefArg>>> =
-        //     proxy.get_all("org.bluez.Adapter1")
-        //         .map_err(|err| format!("Failed to get all properties: {}", err))?;
-        //
-        // for (key, value) in props {
-        //         println!("{}: {:?}", key, value);
-        // }
-        //
-        // Method 3: Call a method to start discovery
-        println!("\n=== Starting Discovery ===");
-        // let found_devices: () = proxy.method_call(connection_parameters.bluetooth_adapter.clone(), "StartDiscovery", (".Name",))
-        //     .map_err(|err| format!("Failed to start discovery: {}", err))?;
-        let discoverable: bool = proxy.get("org.bluez.Adapter1", "Name")
-            .map_err(|err| format!("Failed to get Discoverable property: {}", err))?;
-        println!("Discovery started successfully! {discoverable}");
-
+        // Connect to it.
+        if let Err(e ) = session.pair_with_timeout(&device.id, SCAN_DURATION).await{
+            info!("Bluetooth pair with timeout {:?} : {}", &device.id, &e);
+        }
+        session.connect(&device.id).await?;
         Ok(())
+
+}
+fn get_mac() -> String {
+    let arguments: Vec<String> = std::env::args().collect();
+    for i in arguments {
+        println!("{}", i);
+    }
+
+    return "/dev/class/bluetooth/mac".into();
+
+
 }
