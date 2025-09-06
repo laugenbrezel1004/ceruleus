@@ -1,11 +1,13 @@
 pub mod dbus_bluetoothd;
-use tokio::main;
-
-#[tokio::main]
-async fn main() {
+mod daemon;
 
 
-    if let Err(e ) = dbus_bluetoothd::core::connect_bluetooth_dbus().await{
+fn main() {
+
+
+    //read mac from config file
+
+    if let Err(e ) = dbus_bluetoothd::core::start(){
         eprintln!("ceruleus: Error -> {}", e);
     }
 
